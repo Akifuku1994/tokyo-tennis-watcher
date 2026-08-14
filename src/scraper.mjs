@@ -31,8 +31,7 @@ async function openPark(page, baseUrl, parkName) {
   const target = await parkLink.getAttribute("data-target");
   if (!target) throw new Error(`公園詳細を特定できません: ${parkName}`);
   const detail = page.locator(target);
-  const tennisRow = detail.locator("tr").filter({ hasText: /人工芝|ハード/ }).first();
-　await tennisRow.getByRole("button", { name: "空き検索" }).click();
+  await detail.getByRole("button", { name: "空き検索" }).last().click();
   await page.waitForURL(/rsvWOpeKodawariSearchAction\.do/, { timeout: 30_000 });
   await page.waitForTimeout(3_000);
   await ensureUsable(page);
