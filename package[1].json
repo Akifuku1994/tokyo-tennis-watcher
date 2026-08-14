@@ -1,0 +1,17 @@
+{
+  "name": "tokyo-tennis-watcher",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "watch": "node src/index.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "nodemailer": "7.0.5",
+    "playwright": "1.55.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

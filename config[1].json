@@ -1,0 +1,14 @@
+{
+  "baseUrl": "https://kouen.sports.metro.tokyo.lg.jp/web/",
+  "reservationUrl": "https://kouen.sports.metro.tokyo.lg.jp/web/",
+  "timezone": "Asia/Tokyo",
+  "ignoreWithinDays": 3,
+  "parks": [
+    "日比谷公園",
+    "芝公園",
+    "猿江恩賜公園",
+    "亀戸中央公園",
+    "木場公園",
+    "有明テニスＡ屋外ハードコート"
+  ]
+}
