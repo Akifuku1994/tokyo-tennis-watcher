@@ -11,7 +11,7 @@ async function ensureUsable(page) {
 }
 
 async function waitForCalendar(page) {
-  await page.waitForFunction(() => document.querySelectorAll('#week-info td[id]').length > 0, null, { timeout: 30_000 });
+  await page.waitForFunction(() => document.querySelectorAll('#week-info td[id]').length > 0, null, { timeout: 90_000 });
 }
 
 async function openPark(page, baseUrl, parkName) {
@@ -20,7 +20,7 @@ async function openPark(page, baseUrl, parkName) {
   await ensureUsable(page);
 
   await page.getByRole("button", { name: /こだわり検索/ }).click();
-  await page.waitForURL(/rsvWTranceKodawariAction\.do/, { timeout: 30_000 });
+  await page.waitForURL(/rsvWTranceKodawariAction\.do/, { timeout: 90_000 });
   await page.waitForTimeout(3_000);
   await ensureUsable(page);
 
@@ -32,7 +32,7 @@ async function openPark(page, baseUrl, parkName) {
   if (!target) throw new Error(`公園詳細を特定できません: ${parkName}`);
   const detail = page.locator(target);
   await detail.getByRole("button", { name: "空き検索" }).last().click();
-  await page.waitForURL(/rsvWOpeKodawariSearchAction\.do/, { timeout: 30_000 });
+  await page.waitForURL(/rsvWOpeKodawariSearchAction\.do/, { timeout: 90_000 });
   await page.waitForTimeout(3_000);
   await ensureUsable(page);
   await waitForCalendar(page);
@@ -45,7 +45,7 @@ function escapeRegExp(value) {
 async function openMonthView(page) {
   const toggle = page.locator('[data-target="#monthly"]');
   if ((await page.locator("#monthly.show").count()) === 0) await toggle.click();
-  await page.waitForFunction(() => document.querySelectorAll('#month-info td[id^="month_"]').length > 0, null, { timeout: 30_000 });
+  await page.waitForFunction(() => document.querySelectorAll('#month-info td[id^="month_"]').length > 0, null, { timeout: 90_000 });
 }
 
 async function readTargetDatesInMonth(page, minimumDate) {
@@ -72,12 +72,12 @@ async function nextMonth(page) {
   await page.waitForFunction(previous => {
     const loading = document.querySelector("#loadingmonth");
     return document.querySelector("#month-head")?.textContent?.trim() !== previous && loading?.style.display === "none";
-  }, before, { timeout: 30_000 });
+  }, before, { timeout: 90_000 });
 }
 
 async function readSlotsForDate(page, compact) {
   await page.evaluate(date => window.selectDay(Number(date)), compact);
-  await page.waitForFunction(date => document.querySelectorAll(`#week-info td[id^="${date}_"]`).length > 0, compact, { timeout: 30_000 });
+  await page.waitForFunction(date => document.querySelectorAll(`#week-info td[id^="${date}_"]`).length > 0, compact, { timeout: 90_000 });
   await page.waitForTimeout(800);
 
   return page.locator(`#week-info td[id^="${compact}_"]`).evaluateAll((cells, date) => cells.flatMap(cell => {
