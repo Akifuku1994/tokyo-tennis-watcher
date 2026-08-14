@@ -1,0 +1,65 @@
+name: tennis-availability-watch
+
+on:
+  schedule:
+    # 日本時間7:00〜22:40、20分おき
+    - cron: "0,20,40 22-23,0-13 * * *"
+  workflow_dispatch:
+    inputs:
+      park_name:
+        description: "任意：1公園だけ手動確認"
+        required: false
+        type: string
+
+concurrency:
+  group: tennis-availability-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
+      MAIL_FROM: ${{ secrets.MAIL_FROM }}
+      PARK_NAME: ${{ inputs.park_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 開始時刻を0〜3分ずらす
+        if: github.event_name == 'schedule'
+        shell: bash
+        run: sleep $((RANDOM % 181))
+
+      - name: 依存関係を準備
+        run: npm ci --no-audit --no-fund
+
+      - name: Chromiumを準備
+        run: npx playwright install --with-deps chromium
+
+      - name: 空き状況を確認
+        run: npm run watch
+
+      - name: 状態が変わった場合だけ保存
+        shell: bash
+        run: |
+          if git diff --quiet -- data/state.json; then
+            exit 0
+          fi
+          git config user.name "tennis-watcher[bot]"
+          git config user.email "tennis-watcher@users.noreply.github.com"
+          git add data/state.json
+          git commit -m "chore: update availability state"
+          git push
