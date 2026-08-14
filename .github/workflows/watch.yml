@@ -44,7 +44,7 @@ jobs:
         run: sleep $((RANDOM % 181))
 
       - name: 依存関係を準備
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Chromiumを準備
         run: npx playwright install --with-deps chromium
