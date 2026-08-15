@@ -4,10 +4,27 @@ import { addDays, tokyoDate } from "./calendar.mjs";
 const BLOCK_TEXT =
   /ご指定のページはアクセスできません|過剰な回数のアクセス|しばらく経ってから|Access Denied|Too Many Requests/i;
 
+const NAVIGATION_TIMEOUT = 90_000;
+const OPEN_PARK_RETRIES = 3;
+
 export class AccessBlockedError extends Error {}
 
 async function ensureUsable(page) {
-  const body = await page.locator("body").innerText().catch(() => "");
+  const currentUrl = page.url();
+
+  if (
+    currentUrl.startsWith("chrome-error://") ||
+    currentUrl === "about:blank"
+  ) {
+    throw new Error(
+      `予約サイトの読み込みに失敗しました: ${currentUrl}`
+    );
+  }
+
+  const body = await page
+    .locator("body")
+    .innerText()
+    .catch(() => "");
 
   if (BLOCK_TEXT.test(body)) {
     throw new AccessBlockedError(
@@ -17,29 +34,58 @@ async function ensureUsable(page) {
 }
 
 function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
 }
 
-async function openPark(page, baseUrl, parkName) {
+async function waitBeforeRetry(attempt) {
+  const waitMilliseconds =
+    10_000 * attempt;
+
+  console.log(
+    `${waitMilliseconds / 1000}秒待ってから再試行します`
+  );
+
+  await new Promise(resolve =>
+    setTimeout(resolve, waitMilliseconds)
+  );
+}
+
+async function openParkOnce(
+  page,
+  baseUrl,
+  parkName
+) {
   await page.goto(baseUrl, {
     waitUntil: "domcontentloaded",
-    timeout: 90_000
+    timeout: NAVIGATION_TIMEOUT
   });
 
   await page.waitForTimeout(4_000);
   await ensureUsable(page);
 
-  await page
-    .getByRole("button", { name: /こだわり検索/ })
-    .click();
-
-  await page.waitForURL(
-    /rsvWTranceKodawariAction\.do/,
-    {
-      waitUntil: "domcontentloaded",
-      timeout: 90_000
-    }
+  const searchButton = page.getByRole(
+    "button",
+    { name: /こだわり検索/ }
   );
+
+  await searchButton.waitFor({
+    state: "visible",
+    timeout: NAVIGATION_TIMEOUT
+  });
+
+  await Promise.all([
+    page.waitForURL(
+      /rsvWTranceKodawariAction\.do/,
+      {
+        waitUntil: "domcontentloaded",
+        timeout: NAVIGATION_TIMEOUT
+      }
+    ),
+    searchButton.click()
+  ]);
 
   await page.waitForTimeout(3_000);
   await ensureUsable(page);
@@ -59,7 +105,10 @@ async function openPark(page, baseUrl, parkName) {
     );
   }
 
-  await parkLink.click();
+  await parkLink.waitFor({
+    state: "visible",
+    timeout: NAVIGATION_TIMEOUT
+  });
 
   const target = await parkLink.getAttribute(
     "data-target"
@@ -71,23 +120,107 @@ async function openPark(page, baseUrl, parkName) {
     );
   }
 
+  await parkLink.click();
+
   const detail = page.locator(target);
 
-  await detail
-    .getByRole("button", { name: "空き検索" })
-    .last()
-    .click();
+  const vacancyButton = detail
+    .getByRole("button", {
+      name: "空き検索"
+    })
+    .last();
 
-  await page.waitForURL(
-    /rsvWOpeKodawariSearchAction\.do/,
-    {
-      waitUntil: "domcontentloaded",
-      timeout: 90_000
-    }
-  );
+  await vacancyButton.waitFor({
+    state: "visible",
+    timeout: NAVIGATION_TIMEOUT
+  });
+
+  await Promise.all([
+    page.waitForURL(
+      /rsvWOpeKodawariSearchAction\.do/,
+      {
+        waitUntil: "domcontentloaded",
+        timeout: NAVIGATION_TIMEOUT
+      }
+    ),
+    vacancyButton.click()
+  ]);
 
   await page.waitForTimeout(3_000);
   await ensureUsable(page);
+}
+
+async function openPark(
+  page,
+  baseUrl,
+  parkName
+) {
+  let lastError;
+
+  for (
+    let attempt = 1;
+    attempt <= OPEN_PARK_RETRIES;
+    attempt += 1
+  ) {
+    try {
+      console.log(
+        `${parkName}: 予約サイトを開きます ` +
+          `(${attempt}/${OPEN_PARK_RETRIES})`
+      );
+
+      await openParkOnce(
+        page,
+        baseUrl,
+        parkName
+      );
+
+      console.log(
+        `${parkName}: 予約サイトを開きました`
+      );
+
+      return;
+    } catch (error) {
+      lastError = error;
+
+      console.error(
+        `${parkName}: ページ表示に失敗しました ` +
+          `(${attempt}/${OPEN_PARK_RETRIES})`
+      );
+
+      console.error(
+        error instanceof Error
+          ? error.message
+          : String(error)
+      );
+
+      if (error instanceof AccessBlockedError) {
+        throw error;
+      }
+
+      if (attempt >= OPEN_PARK_RETRIES) {
+        break;
+      }
+
+      await page
+        .goto("about:blank", {
+          waitUntil: "domcontentloaded",
+          timeout: 10_000
+        })
+        .catch(() => {});
+
+      await waitBeforeRetry(attempt);
+    }
+  }
+
+  throw new Error(
+    `${parkName}: ${OPEN_PARK_RETRIES}回試行しましたが、` +
+      `予約サイトを開けませんでした。最後のエラー: ` +
+      `${
+        lastError instanceof Error
+          ? lastError.message
+          : String(lastError)
+      }`
+  );
 }
 
 async function openMonthView(page) {
@@ -96,8 +229,9 @@ async function openMonthView(page) {
   );
 
   if (
-    (await page.locator("#monthly.show").count()) ===
-    0
+    (await page
+      .locator("#monthly.show")
+      .count()) === 0
   ) {
     await toggle.click();
   }
@@ -108,8 +242,10 @@ async function openMonthView(page) {
         '#month-info td[id^="month_"]'
       ).length > 0,
     null,
-    { timeout: 90_000 }
+    { timeout: NAVIGATION_TIMEOUT }
   );
+
+  await ensureUsable(page);
 }
 
 async function readTargetDatesInMonth(
@@ -141,15 +277,22 @@ async function readTargetDatesInMonth(
           );
 
           const isTargetDay =
-            day?.classList.contains("saturday") ||
-            day?.classList.contains("holiday");
+            day?.classList.contains(
+              "saturday"
+            ) ||
+            day?.classList.contains(
+              "holiday"
+            );
 
           const status =
             cell
-              .querySelector("img.calendar-status")
+              .querySelector(
+                "img.calendar-status"
+              )
               ?.getAttribute("alt") || "";
 
-          return isTargetDay && /空き/.test(status)
+          return isTargetDay &&
+            /空き/.test(status)
             ? [compact]
             : [];
         }),
@@ -159,7 +302,9 @@ async function readTargetDatesInMonth(
 
 async function monthHead(page) {
   return (
-    await page.locator("#month-head").innerText()
+    await page
+      .locator("#month-head")
+      .innerText()
   ).trim();
 }
 
@@ -171,7 +316,9 @@ async function nextMonth(page) {
   await page.waitForFunction(
     previous => {
       const loading =
-        document.querySelector("#loadingmonth");
+        document.querySelector(
+          "#loadingmonth"
+        );
 
       const changed =
         document
@@ -185,11 +332,16 @@ async function nextMonth(page) {
       return changed && finished;
     },
     before,
-    { timeout: 90_000 }
+    { timeout: NAVIGATION_TIMEOUT }
   );
+
+  await ensureUsable(page);
 }
 
-async function readSlotsForDate(page, compact) {
+async function readSlotsForDate(
+  page,
+  compact
+) {
   await page.evaluate(
     date => window.selectDay(Number(date)),
     compact
@@ -201,24 +353,31 @@ async function readSlotsForDate(page, compact) {
         `#week-info td[id^="${date}_"]`
       ).length > 0,
     compact,
-    { timeout: 90_000 }
+    { timeout: NAVIGATION_TIMEOUT }
   );
 
   await page.waitForTimeout(800);
+  await ensureUsable(page);
 
   return page
-    .locator(`#week-info td[id^="${compact}_"]`)
+    .locator(
+      `#week-info td[id^="${compact}_"]`
+    )
     .evaluateAll(
       (cells, date) =>
         cells.flatMap(cell => {
           const status =
             cell
-              .querySelector("img.calendar-status")
+              .querySelector(
+                "img.calendar-status"
+              )
               ?.getAttribute("alt") || "";
 
           if (
             status !== "空き" &&
-            !cell.classList.contains("available")
+            !cell.classList.contains(
+              "available"
+            )
           ) {
             return [];
           }
@@ -226,12 +385,17 @@ async function readSlotsForDate(page, compact) {
           const time =
             cell.parentElement
               ?.querySelector("th")
-              ?.textContent?.replace(/\s+/g, "")
+              ?.textContent?.replace(
+                /\s+/g,
+                ""
+              )
               .trim() || "時間不明";
 
           const count = Number(
             cell
-              .querySelector('input[id^="A_"]')
+              .querySelector(
+                'input[id^="A_"]'
+              )
               ?.getAttribute("value") ||
               cell
                 .querySelector(
@@ -272,6 +436,14 @@ export async function scanPark(
 
   const page = await context.newPage();
 
+  page.setDefaultTimeout(
+    NAVIGATION_TIMEOUT
+  );
+
+  page.setDefaultNavigationTimeout(
+    NAVIGATION_TIMEOUT
+  );
+
   try {
     await openPark(
       page,
@@ -298,7 +470,10 @@ export async function scanPark(
       const date of currentMonthDates.sort()
     ) {
       slots.push(
-        ...(await readSlotsForDate(page, date))
+        ...(await readSlotsForDate(
+          page,
+          date
+        ))
       );
     }
 
@@ -310,9 +485,14 @@ export async function scanPark(
         minimumDate
       );
 
-    for (const date of nextMonthDates.sort()) {
+    for (
+      const date of nextMonthDates.sort()
+    ) {
       slots.push(
-        ...(await readSlotsForDate(page, date))
+        ...(await readSlotsForDate(
+          page,
+          date
+        ))
       );
     }
 
