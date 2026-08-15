@@ -1,9 +1,6 @@
 name: tennis-availability-watch
 
 on:
-  schedule:
-    # 07:00〜23:50 JST、10分おき
-    - cron: "*/10 22-23,0-14 * * *"
   workflow_dispatch:
     inputs:
       park_name:
@@ -41,11 +38,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-
-      - name: 開始時刻を0〜3分ずらす
-        if: github.event_name == 'schedule'
-        shell: bash
-        run: sleep $((RANDOM % 181))
 
       - name: 依存関係を準備
         run: npm ci --no-audit --no-fund
