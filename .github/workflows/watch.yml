@@ -22,7 +22,6 @@ jobs:
   watch:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     env:
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
       SMTP_PORT: ${{ secrets.SMTP_PORT }}
@@ -31,15 +30,17 @@ jobs:
       MAIL_TO: ${{ secrets.MAIL_TO }}
       MAIL_FROM: ${{ secrets.MAIL_FROM }}
       PARK_NAME: ${{ inputs.park_name }}
-
     steps:
       - name: ファイルを取得
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Node.jsを準備
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: 開始時刻を0〜3分ずらす
         if: github.event_name == 'schedule'
@@ -47,7 +48,7 @@ jobs:
         run: sleep $((RANDOM % 181))
 
       - name: 依存関係を準備
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Chromiumを準備
         run: npx playwright install --with-deps chromium
@@ -61,9 +62,9 @@ jobs:
           if git diff --quiet -- data/state.json; then
             exit 0
           fi
-
           git config user.name "tennis-watcher[bot]"
           git config user.email "tennis-watcher@users.noreply.github.com"
           git add data/state.json
           git commit -m "chore: update availability state"
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main
