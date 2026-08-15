@@ -20,7 +20,10 @@ async function openPark(page, baseUrl, parkName) {
   await ensureUsable(page);
 
   await page.getByRole("button", { name: /こだわり検索/ }).click();
-  await page.waitForURL(/rsvWTranceKodawariAction\.do/, { timeout: 90_000 });
+  await page.waitForURL(/rsvWTranceKodawariAction\.do/, {
+  waitUntil: "domcontentloaded",
+  timeout: 90_000
+});
   await page.waitForTimeout(3_000);
   await ensureUsable(page);
 
@@ -32,7 +35,10 @@ async function openPark(page, baseUrl, parkName) {
   if (!target) throw new Error(`公園詳細を特定できません: ${parkName}`);
   const detail = page.locator(target);
   await detail.getByRole("button", { name: "空き検索" }).last().click();
-  await page.waitForURL(/rsvWOpeKodawariSearchAction\.do/, { timeout: 90_000 });
+  await page.waitForURL(/rsvWOpeKodawariSearchAction\.do/, {
+  waitUntil: "domcontentloaded",
+  timeout: 90_000
+});
   await page.waitForTimeout(3_000);
   await ensureUsable(page);
   await waitForCalendar(page);
