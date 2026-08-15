@@ -2,8 +2,8 @@ name: tennis-availability-watch
 
 on:
   schedule:
-    # 日本時間7:00〜22:40、20分おき
-    - cron: "0,20,40 22-23,0-14 * * *"
+# 07:00〜23:50 JST、10分おき（開始時刻は0〜3分ずれる）    # 07:00〜23:50 JST、10分おき（開始時刻は0〜3分ずれる）
+-cron: "*/10 22-23,0-14 * * *"
   workflow_dispatch:
     inputs:
       park_name:
