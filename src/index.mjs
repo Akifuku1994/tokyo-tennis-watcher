@@ -43,7 +43,6 @@ for (const park of parks) {
 }
 
 state.cooldownUntil = null;
-state.lastSuccessfulCheckAt = new Date().toISOString();
 
 await writeFile(
   stateUrl,
