@@ -6,8 +6,6 @@ import {
   scanPark
 } from "./scraper.mjs";
 
-const ARIAKE_PARK = "有明テニスＡ屋外ハードコート";
-
 const config = JSON.parse(
   await readFile(new URL("../config.json", import.meta.url), "utf8")
 );
@@ -16,22 +14,11 @@ const stateUrl = new URL("../data/state.json", import.meta.url);
 const state = JSON.parse(await readFile(stateUrl, "utf8"));
 const now = new Date();
 const forcedPark = process.env.PARK_NAME?.trim();
-const parkGroup = process.env.PARK_GROUP?.trim();
 
-let parks;
-
-if (forcedPark) {
-  parks = [forcedPark];
-} else if (parkGroup === "main") {
-  parks = config.parks.filter(park => park !== ARIAKE_PARK);
-} else if (parkGroup === "ariake") {
-  parks = config.parks.filter(park => park === ARIAKE_PARK);
-} else {
-  parks = config.parks;
-}
+const parks = forcedPark ? [forcedPark] : config.parks;
 
 if (parks.length === 0) {
-  throw new Error(`監視対象が見つかりません: PARK_GROUP=${parkGroup || "未指定"}`);
+  throw new Error("監視対象が見つかりません");
 }
 
 state.parks ||= {};
