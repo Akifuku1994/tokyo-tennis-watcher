@@ -78,7 +78,9 @@ for (const park of parks) {
 
 await saveState();
 
-if (failures.length > 0) {
+const toleratedFailures = parks.length >= 6 ? 1 : 0;
+
+if (failures.length > toleratedFailures) {
   const details = failures
     .map(({ park, reason }) => `${park}: ${reason}`)
     .join(" / ");
@@ -91,6 +93,13 @@ if (failures.length > 0) {
   );
 }
 
-console.log(
-  `::notice title=監視完了::対象 ${parks.length}公園をすべて確認しました`
-);
+if (failures.length === 1) {
+  const [{ park, reason }] = failures;
+  console.log(
+    `::notice title=一部確認できませんでした::成功 ${successfulParks}/${parks.length}公園。未確認: ${park}（${reason}）。ジョブは成功扱いです`
+  );
+} else {
+  console.log(
+    `::notice title=監視完了::対象 ${parks.length}公園をすべて確認しました`
+  );
+}
