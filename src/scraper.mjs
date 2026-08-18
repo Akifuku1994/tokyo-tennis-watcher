@@ -4,6 +4,7 @@ import { addDays, tokyoDate } from "./calendar.mjs";
 const BLOCK_TEXT =
   /ご指定のページはアクセスできません|過剰な回数のアクセス|しばらく経ってから|Access Denied|Too Many Requests/i;
 const NAVIGATION_TIMEOUT = 30_000;
+const CALENDAR_TIMEOUT = 90_000;
 const OPEN_PARK_RETRIES = 2;
 
 export class AccessBlockedError extends Error {}
@@ -119,7 +120,9 @@ async function openMonthView(page) {
   }
   await page.waitForFunction(
     () =>
-      document.querySelectorAll('#month-info td[id^="month_"]').length > 0
+      document.querySelectorAll('#month-info td[id^="month_"]').length > 0,
+    null,
+    { timeout: CALENDAR_TIMEOUT }
   );
   await ensureUsable(page);
 }
@@ -148,13 +151,17 @@ async function readTargetDatesInMonth(page, minimumDate) {
 async function nextMonth(page) {
   const before = (await page.locator("#month-head").innerText()).trim();
   await page.locator("#next-month").click();
-  await page.waitForFunction(previous => {
-    const loading = document.querySelector("#loadingmonth");
-    const changed =
-      document.querySelector("#month-head")?.textContent?.trim() !== previous;
-    const finished = !loading || loading.style.display === "none";
-    return changed && finished;
-  }, before);
+  await page.waitForFunction(
+    previous => {
+      const loading = document.querySelector("#loadingmonth");
+      const changed =
+        document.querySelector("#month-head")?.textContent?.trim() !== previous;
+      const finished = !loading || loading.style.display === "none";
+      return changed && finished;
+    },
+    before,
+    { timeout: CALENDAR_TIMEOUT }
+  );
   await ensureUsable(page);
 }
 
@@ -163,7 +170,8 @@ async function readSlotsForDate(page, compact) {
   await page.waitForFunction(
     date =>
       document.querySelectorAll(`#week-info td[id^="${date}_"]`).length > 0,
-    compact
+    compact,
+    { timeout: CALENDAR_TIMEOUT }
   );
   await page.waitForTimeout(800);
   await ensureUsable(page);
@@ -208,7 +216,9 @@ export async function scanPark(config, parkName, now = new Date()) {
 
   try {
     await openPark(page, config.baseUrl, parkName);
+    console.log(`${parkName}: 月表示の読み込みを待っています`);
     await openMonthView(page);
+    console.log(`${parkName}: 月表示を読み込みました`);
     const minimumDate = addDays(
       tokyoDate(now),
       config.ignoreWithinDays + 1
@@ -216,10 +226,16 @@ export async function scanPark(config, parkName, now = new Date()) {
     const slots = [];
 
     for (const date of (await readTargetDatesInMonth(page, minimumDate)).sort()) {
+      console.log(`${parkName}: ${date} の時間枠を読み込んでいます`);
       slots.push(...(await readSlotsForDate(page, date)));
     }
+
+    console.log(`${parkName}: 翌月表示の読み込みを待っています`);
     await nextMonth(page);
+    console.log(`${parkName}: 翌月表示を読み込みました`);
+
     for (const date of (await readTargetDatesInMonth(page, minimumDate)).sort()) {
+      console.log(`${parkName}: ${date} の時間枠を読み込んでいます`);
       slots.push(...(await readSlotsForDate(page, date)));
     }
 
