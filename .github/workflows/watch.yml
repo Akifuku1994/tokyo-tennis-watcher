@@ -18,6 +18,9 @@ permissions:
 jobs:
   watch:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+      options: --user 1001 --ipc=host
     timeout-minutes: 15
     env:
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -41,9 +44,6 @@ jobs:
 
       - name: 依存関係を準備
         run: npm ci --no-audit --no-fund
-
-      - name: Chromiumを準備
-        run: npx playwright install --with-deps chromium
 
       - name: 空き状況を確認
         run: npm run watch
