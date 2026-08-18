@@ -3,7 +3,6 @@
   "reservationUrl": "https://kouen.sports.metro.tokyo.lg.jp/web/",
   "timezone": "Asia/Tokyo",
   "ignoreWithinDays": 3,
-  "accessBlockCooldownHours": 6,
   "parks": [
     "日比谷公園",
     "芝公園",
