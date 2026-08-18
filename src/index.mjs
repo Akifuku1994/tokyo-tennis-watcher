@@ -17,30 +17,18 @@ const forcedPark = process.env.PARK_NAME?.trim();
 const parks = forcedPark ? [forcedPark] : config.parks;
 
 state.parks ||= {};
+delete state.cooldownUntil;
 delete state.lastSuccessfulCheckAt;
 delete state.lastRunAt;
-
-function millisecondsUntil(iso) {
-  const value = Date.parse(iso || "");
-  return Number.isFinite(value) ? value - now.getTime() : 0;
-}
 
 async function saveState() {
   await writeFile(stateUrl, `${JSON.stringify(state, null, 2)}\n`);
 }
 
-if (!forcedPark && millisecondsUntil(state.cooldownUntil) > 0) {
-  console.log(
-    `::notice title=監視を休止中::アクセス制限対策のため ${state.cooldownUntil} まで休止します`
-  );
-  process.exit(0);
-}
-
 console.log(`監視対象: ${parks.join("、")}`);
 
 let successfulParks = 0;
-let unavailableParks = 0;
-let accessBlocked = false;
+const failures = [];
 
 for (const park of parks) {
   console.log(`確認中: ${park}`);
@@ -68,39 +56,36 @@ for (const park of parks) {
       `${park}: 空き ${slots.length}件、新規 ${newSlots.length}件`
     );
   } catch (error) {
-    if (error instanceof AccessBlockedError) {
-      const cooldownHours = Number(
-        config.accessBlockCooldownHours || 6
-      );
-      state.cooldownUntil = new Date(
-        now.getTime() + cooldownHours * 60 * 60_000
-      ).toISOString();
-      accessBlocked = true;
-      unavailableParks += 1;
-      console.log(
-        `::warning title=アクセス制限を検知::${state.cooldownUntil} まで監視を休止します`
-      );
-      break;
-    }
+    const reason =
+      error instanceof AccessBlockedError
+        ? "予約システムのアクセス制限を検知しました"
+        : error instanceof SiteUnavailableError
+          ? error.message
+          : error?.message || String(error);
 
-    if (error instanceof SiteUnavailableError) {
-      unavailableParks += 1;
-      console.log(
-        `::warning title=${park}を確認できませんでした::${error.message}`
-      );
-      continue;
-    }
+    failures.push({ park, reason });
 
-    throw error;
+    console.log(
+      `::warning title=${park}を確認できませんでした::${reason}`
+    );
   }
-}
-
-if (successfulParks > 0 && !accessBlocked) {
-  state.cooldownUntil = null;
 }
 
 await saveState();
 
+if (failures.length > 0) {
+  const details = failures
+    .map(({ park, reason }) => `${park}: ${reason}`)
+    .join(" / ");
+
+  console.error(
+    `::error title=監視未完了::成功 ${successfulParks}/${parks.length}公園。確認失敗: ${details}`
+  );
+  throw new Error(
+    `監視未完了: 成功 ${successfulParks}/${parks.length}公園`
+  );
+}
+
 console.log(
-  `::notice title=監視完了::成功 ${successfulParks}公園、確認不能 ${unavailableParks}公園`
+  `::notice title=監視完了::対象 ${parks.length}公園をすべて確認しました`
 );
