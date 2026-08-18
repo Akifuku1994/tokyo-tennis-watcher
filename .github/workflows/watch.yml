@@ -16,7 +16,9 @@ permissions:
   contents: write
 
 jobs:
-  watch:
+  watch_main:
+    name: 通常5公園
+    if: ${{ inputs.park_name == '' || inputs.park_name != '有明テニスＡ屋外ハードコート' }}
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
@@ -30,6 +32,7 @@ jobs:
       MAIL_TO: ${{ secrets.MAIL_TO }}
       MAIL_FROM: ${{ secrets.MAIL_FROM }}
       PARK_NAME: ${{ inputs.park_name }}
+      PARK_GROUP: main
     steps:
       - name: ファイルを取得
         uses: actions/checkout@v5
@@ -45,7 +48,56 @@ jobs:
       - name: 依存関係を準備
         run: npm ci --no-audit --no-fund
 
-      - name: 空き状況を確認
+      - name: 通常5公園の空き状況を確認
+        run: npm run watch
+
+      - name: 状態が変わった場合だけ保存
+        shell: bash
+        run: |
+          if git diff --quiet -- data/state.json; then
+            exit 0
+          fi
+          git config user.name "tennis-watcher[bot]"
+          git config user.email "tennis-watcher@users.noreply.github.com"
+          git add data/state.json
+          git commit -m "chore: update availability state"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+  watch_ariake:
+    name: 有明テニスＡ屋外ハードコート
+    needs: watch_main
+    if: ${{ always() && (inputs.park_name == '' || inputs.park_name == '有明テニスＡ屋外ハードコート') }}
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+      options: --user 1001 --ipc=host
+    timeout-minutes: 15
+    env:
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
+      MAIL_FROM: ${{ secrets.MAIL_FROM }}
+      PARK_NAME: ${{ inputs.park_name }}
+      PARK_GROUP: ariake
+    steps:
+      - name: ファイルを取得
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Node.jsを準備
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 依存関係を準備
+        run: npm ci --no-audit --no-fund
+
+      - name: 有明の空き状況を確認
         run: npm run watch
 
       - name: 状態が変わった場合だけ保存
