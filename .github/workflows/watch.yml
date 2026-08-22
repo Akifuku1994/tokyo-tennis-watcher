@@ -50,6 +50,7 @@ jobs:
         run: npm run watch
 
       - name: 状態が変わった場合だけ保存
+        if: always()
         shell: bash
         run: |
           if git diff --quiet -- data/state.json; then
