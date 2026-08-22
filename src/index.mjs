@@ -6,6 +6,8 @@ import {
   scanPark
 } from "./scraper.mjs";
 
+const ERROR_NOTIFICATION_THRESHOLD = 10;
+
 const config = JSON.parse(
   await readFile(new URL("../config.json", import.meta.url), "utf8")
 );
@@ -22,6 +24,7 @@ if (parks.length === 0) {
 }
 
 state.parks ||= {};
+state.consecutiveFailedRuns ||= 0;
 delete state.cooldownUntil;
 delete state.lastSuccessfulCheckAt;
 delete state.lastRunAt;
@@ -76,27 +79,44 @@ for (const park of parks) {
   }
 }
 
+const toleratedFailures = parks.length >= 6 ? 1 : 0;
+const runFailed = failures.length > toleratedFailures;
+
+if (runFailed) {
+  state.consecutiveFailedRuns += 1;
+} else {
+  state.consecutiveFailedRuns = 0;
+}
+
 await saveState();
 
-const toleratedFailures = parks.length >= 6 ? 1 : 0;
-
-if (failures.length > toleratedFailures) {
+if (runFailed) {
   const details = failures
     .map(({ park, reason }) => `${park}: ${reason}`)
     .join(" / ");
+  const consecutive = state.consecutiveFailedRuns;
 
-  console.error(
-    `::error title=監視未完了::成功 ${successfulParks}/${parks.length}公園。確認失敗: ${details}`
-  );
-  throw new Error(
-    `監視未完了: 成功 ${successfulParks}/${parks.length}公園`
-  );
-}
+  if (consecutive === ERROR_NOTIFICATION_THRESHOLD) {
+    console.error(
+      `::error title=監視が10回連続で失敗しました::成功 ${successfulParks}/${parks.length}公園。確認失敗: ${details}`
+    );
+    throw new Error(
+      `監視未完了が${ERROR_NOTIFICATION_THRESHOLD}回連続しました: 成功 ${successfulParks}/${parks.length}公園`
+    );
+  }
 
-if (failures.length === 1) {
+  const status =
+    consecutive < ERROR_NOTIFICATION_THRESHOLD
+      ? `エラー通知まであと ${ERROR_NOTIFICATION_THRESHOLD - consecutive}回`
+      : "10回目に通知済み";
+
+  console.log(
+    `::notice title=監視失敗を一時保留::連続 ${consecutive}回目（${status}）。成功 ${successfulParks}/${parks.length}公園。確認失敗: ${details}`
+  );
+} else if (failures.length === 1) {
   const [{ park, reason }] = failures;
   console.log(
-    `::notice title=一部確認できませんでした::成功 ${successfulParks}/${parks.length}公園。未確認: ${park}（${reason}）。ジョブは成功扱いです`
+    `::notice title=一部確認できませんでした::成功 ${successfulParks}/${parks.length}公園。未確認: ${park}（${reason}）。連続失敗には数えません`
   );
 } else {
   console.log(
