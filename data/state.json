@@ -9,15 +9,10 @@
         "date": "2026-08-29",
         "time": "１１時",
         "count": 1
-      },
-      {
-        "date": "2026-08-30",
-        "time": "１５時",
-        "count": 1
       }
     ],
     "木場公園": [],
     "大島小松川公園": []
   },
-  "consecutiveFailedRuns": 0
+  "consecutiveFailedRuns": 1
 }
