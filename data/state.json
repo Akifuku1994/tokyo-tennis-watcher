@@ -6,13 +6,7 @@
     "猿江恩賜公園": [],
     "亀戸中央公園": [],
     "木場公園": [],
-    "大島小松川公園": [
-      {
-        "date": "2026-09-06",
-        "time": "１３時",
-        "count": 1
-      }
-    ]
+    "大島小松川公園": []
   },
-  "consecutiveFailedRuns": 0
+  "consecutiveFailedRuns": 1
 }
