@@ -23,12 +23,12 @@
 | `SMTP_PORT` | `465` |
 | `SMTP_USER` | 送信に使うGmailアドレス |
 | `SMTP_PASS` | Googleのアプリパスワード（通常のログインパスワードは禁止） |
-| `MAIL_TO` | 通知を受け取るメールアドレス |
+| `MAIL_TO` | 不要（通知先は `sp.m.wi1994@gmail.com` に固定） |
 | `MAIL_FROM` | 省略可。通常は`SMTP_USER`と同じ |
 
 `Actions`タブで`tennis-availability-watch`を開き、`Run workflow`で手動実行できます。
 
-メール送信だけを確認する場合は、`Run workflow`で `test_mail` を `true` にして実行してください。予約サイトの巡回は行わず、設定済みの `MAIL_TO` 宛てに「【テニス空き通知】メール送信テスト」を1通送ります。受信トレイと迷惑メールを確認してください。
+メール送信だけを確認する場合は、`Run workflow`で `test_mail` を `true` にして実行してください。予約サイトの巡回は行わず、`sp.m.wi1994@gmail.com` 宛てに「【テニス空き通知】メール送信テスト」を1通送ります。受信トレイと迷惑メールを確認してください。
 
 ## 動作上の注意
 
