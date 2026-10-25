@@ -16,7 +16,7 @@ export async function sendAvailabilityMail({ park, newSlots, reservationUrl }) {
   const port = Number(process.env.SMTP_PORT || 465);
   const user = required("SMTP_USER");
   const pass = required("SMTP_PASS");
-  const to = required("MAIL_TO");
+  const to = "sp.m.wi1994@gmail.com";
 
   const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
   const lines = newSlots.map(slot => `・${slot.date} ${slot.time}（空き ${slot.count}面）`);
@@ -33,7 +33,7 @@ export async function sendTestMail() {
   const port = Number(process.env.SMTP_PORT || 465);
   const user = required("SMTP_USER");
   const pass = required("SMTP_PASS");
-  const to = required("MAIL_TO");
+  const to = "sp.m.wi1994@gmail.com";
 
   const transporter = nodemailer.createTransport({
     host,
