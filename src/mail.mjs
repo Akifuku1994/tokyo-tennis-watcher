@@ -27,3 +27,24 @@ export async function sendAvailabilityMail({ park, newSlots, reservationUrl }) {
     text: `${park}で新しい空きを検出しました。\n\n${lines.join("\n")}\n\n予約画面：${reservationUrl}\n\n※通知時点の情報です。予約を保証するものではありません。`
   });
 }
+
+export async function sendTestMail() {
+  const host = required("SMTP_HOST");
+  const port = Number(process.env.SMTP_PORT || 465);
+  const user = required("SMTP_USER");
+  const pass = required("SMTP_PASS");
+  const to = required("MAIL_TO");
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass }
+  });
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || user,
+    to,
+    subject: "【テニス空き通知】メール送信テスト",
+    text: "これは都立公園テニスコート空き通知システムの送信テストです。\n\nこのメールが届けば、GitHub ActionsからSMTP経由でメールを送信できています。\n実際の空き通知とは異なり、予約枠の検出は行っていません。"
+  });
+}
