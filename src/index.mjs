@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { sendAvailabilityMail } from "./mail.mjs";
+import { sendAvailabilityMail, sendTestMail } from "./mail.mjs";
 import {
   AccessBlockedError,
   SiteUnavailableError,
@@ -34,6 +34,12 @@ async function saveState() {
 }
 
 console.log(`監視対象: ${parks.join("、")}`);
+
+if (process.env.TEST_MAIL === "true" || process.env.TEST_MAIL === "1") {
+  await sendTestMail();
+  console.log("テストメールを送信しました。受信トレイと迷惑メールを確認してください。");
+  process.exit(0);
+}
 
 let successfulParks = 0;
 const failures = [];
