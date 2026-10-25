@@ -139,6 +139,7 @@ async function readTargetDatesInMonth(page, minimumDate) {
         const day = cell.querySelector(":scope > div > span:first-child");
         const isTargetDay =
           day?.classList.contains("saturday") ||
+          day?.classList.contains("sunday") ||
           day?.classList.contains("holiday");
         const status =
           cell.querySelector("img.calendar-status")?.getAttribute("alt") || "";
