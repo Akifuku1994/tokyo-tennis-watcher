@@ -7,6 +7,11 @@ on:
         description: "任意: 1公園だけ手動確認"
         required: false
         type: string
+      test_mail:
+        description: "メール送信テスト（空き状況の確認は行わない）"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: tennis-availability-watch
@@ -31,6 +36,7 @@ jobs:
       MAIL_TO: ${{ secrets.MAIL_TO }}
       MAIL_FROM: ${{ secrets.MAIL_FROM }}
       PARK_NAME: ${{ inputs.park_name }}
+      TEST_MAIL: ${{ inputs.test_mail }}
     steps:
       - name: ファイルを取得
         uses: actions/checkout@v5
